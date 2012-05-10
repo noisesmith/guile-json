@@ -1,0 +1,91 @@
+#!/usr/bin/guile
+
+this file can be run directly as a shell script
+	weather [json-file]
+or loaded into an interactive scheme process (with readline turned on)
+	guile -l weather [-- json-file]
+
+when loaded into scheme, you can explore the data structure with commands like:
+(json:unfold weather)
+there is a simple wrapper to json:unfold called uf, and weather is aliased as w,
+to simplify exploration
+
+(uf w "forecast")
+(uf w "forecast" "simpleforecast")
+
+!#
+
+;;; find all the example code
+(define example-path "./")
+(define (here? path)
+  (format #t "looking for example data in ~S\n" path)
+  (if (and (access? (string-join (list path "json/") "/")
+		    (logior R_OK X_OK))
+	   (access? (string-join (list path "examples/") "/")
+		    (logior R_OK X_OK)))
+      path
+      #f))
+(define working-path
+  (or (here? (let ((rev-path (string-reverse (car (command-line)))))
+	       (if (string-index rev-path #\/)
+		   (string-append
+		    (string-reverse
+		     (substring rev-path (string-index rev-path #\/)))
+		    "../")
+		   "")))
+      (here? ".")
+      (here? "..")
+      (here? "./guile-json")
+      (here?
+       (begin
+	 (display "example data not found\n")
+	 (display "the data will be in a directory with folders named")
+	 (display " \"json/\" and \"examples/\"\n")
+	 (display "please enter the quoted path to the data directory\n")
+	 (display "(ie \".\" or \"/home/user/Desktop/guile-json/\")\t:\t")
+	 (let ((input (read)))
+	   (cond ((symbol? input) (symbol->string input))
+		 ((string? input) (input))
+		 (#t #f)))))))
+(if working-path
+    (begin (set! %load-path (cons working-path %load-path))
+	   (set! example-path (string-join
+			       (list working-path "examples") "/"))))
+
+;;; load example files, and do some stuff with the data
+(use-modules (json utils) (ice-9 readline))
+
+(define json-input-file
+;;; Look for the first command line arg as an input file, or the default file.
+;;; For a real application, we would request the json from the weather
+;;; underground server.
+  ;; http://www.wunderground.com/weather/api/d/documentation.html
+  (if (> (length (command-line)) 1)
+      (list-ref (command-line) 1)
+  (string-join (list example-path "Portland.json") "/")))
+
+(define (uf . doll)
+;; useful for interactively investigating structures from the repl
+  (let ((innermost (apply json:unfold doll)))
+    (format #t "\nfound: ~S\n\n" (if (hash-table? innermost)
+				   (json:keys innermost)
+				   innermost))
+    innermost))
+
+(define weather-nest (json:parse (open-input-file json-input-file)))
+(if (not (= (length weather-nest) 1))
+	 (error "parsing weather underground data failed"))
+(define weather (json:unfold weather-nest 0))
+(define w weather)
+
+(define (weather-today)
+  "extract today's weather from a json file from weather underground"
+  (let* ((forecast (json:unfold weather "forecast" "txt_forecast"
+				"forecastday" 0 "fcttext"))
+	 (time (json:unfold weather "forecast" "simpleforecast"
+			    "forecastday" 0 "date" "pretty")))
+    (format #t "\nWeather for ~a:\n~a\n" time forecast)))
+
+(weather-today)
+
+(activate-readline)

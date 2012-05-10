@@ -1,3 +1,10 @@
+These are some additions and modifications to the guile-json code, the
+original author retains copyright, and my intention is that the
+changes are simply merged into the upstream.
+Justin Smith <noisesmith@gmail.com>
+
+the original project is available at https://github.com/cthom06/guile-json
+the original README follows
 guile-json: A basic JSON parser for Guile
 
 This is a json parser for Guile that I hacked together in ~3 hours (well, it's gone up since then), it's still a bit rough around the edges, but if your json is valid it should handle it fine.
